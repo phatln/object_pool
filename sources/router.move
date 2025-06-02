@@ -1,6 +1,7 @@
 module tapp::router {
     use std::bcs::to_bytes;
     use std::signer::address_of;
+    use std::vector::range;
     use aptos_std::table;
     use aptos_std::table::Table;
     use aptos_framework::account::{create_resource_account, create_signer_with_capability, SignerCapability};
@@ -70,6 +71,19 @@ module tapp::router {
         hook_factory::create_position(&pool_signer, shares);
     }
 
+    public entry fun create_many_positions(id: address, count: u64, shares: u64) acquires PoolCap, Vault {
+        let vault = &mut Vault[@tapp];
+        let pool_addr = vault.pools.borrow(id);
+
+        // Router grants PoolCap
+        let pool_cap = &PoolCap[*pool_addr];
+        let pool_signer = generate_signer_for_extending(&pool_cap.extend_ref);
+
+        range(0, count).for_each(|_| {
+            hook_factory::create_position(&pool_signer, shares);
+        });
+    }
+
     public entry fun lcreate_pool(id: address) acquires LegacyVault {
         let vault = borrow_global_mut<LegacyVault>(@tapp);
         let pool_meta = hook_factory::lcreate_pool(id);
@@ -80,6 +94,15 @@ module tapp::router {
         let vault = &mut LegacyVault[@tapp];
         let pool_meta = vault.pools.borrow_mut(id);
         hook_factory::lcreate_position(pool_meta, shares);
+    }
+
+    public entry fun lcreate_many_position(id: address, count: u64, shares: u64) acquires LegacyVault {
+        let vault = &mut LegacyVault[@tapp];
+        let pool_meta = vault.pools.borrow_mut(id);
+
+        range(0, count).for_each(|_| {
+            hook_factory::lcreate_position(pool_meta, shares);
+        });
     }
 
     #[view]
