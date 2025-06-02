@@ -1,22 +1,38 @@
 module tapp::amm {
-    use std::signer::address_of;
+    use aptos_std::big_ordered_map;
+    use aptos_std::big_ordered_map::BigOrderedMap;
 
-    struct Pool has key {
+    struct Pool has key, store {
         id: address,
-        value: u64,
+        position_count: u64,
+        positions: BigOrderedMap<u64, Position>
     }
 
-    public fun create_pool(pool_signer: &signer) {
-        move_to(pool_signer, Pool { id: @0x123456, value: 0 });
+    struct LPool has store {
+        id: address,
+        position_count: u64,
+        positions: BigOrderedMap<u64, Position>
     }
 
-    public fun update_pool(pool_signer: &signer, value: u64) acquires Pool {
-        let pool = borrow_global_mut<Pool>(address_of(pool_signer));
-        pool.value = value;
+    struct Position has store {
+        shares: u64,
     }
 
-    public fun value(pool_addr: address): u64 acquires Pool {
-        let pool = borrow_global<Pool>(pool_addr);
-        pool.value
+    public fun create_pool(id: address): Pool {
+        Pool { id, position_count: 0, positions: big_ordered_map::new() }
+    }
+
+    public fun create_position(self: &mut Pool, shares: u64) {
+        self.position_count += 1;
+        self.positions.add(self.position_count, Position { shares });
+    }
+
+    public fun lcreate_pool(id: address): Pool {
+        Pool { id, position_count: 0, positions: big_ordered_map::new() }
+    }
+
+    public fun lcreate_position(self: &mut Pool, shares: u64) {
+        self.position_count += 1;
+        self.positions.add(self.position_count, Position { shares });
     }
 }
