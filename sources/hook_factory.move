@@ -5,6 +5,7 @@ module tapp::hook_factory {
         let hook_type = 2;
         if (hook_type == 2) {
             amm::create_pool(pool_signer);
+            return;
         };
 
         // so on for v3, stable, etc.
@@ -15,6 +16,7 @@ module tapp::hook_factory {
         let hook_type = 2;
         if (hook_type == 2) {
             amm::update_pool(pool_signer, value);
+            return;
         };
 
         abort 0;

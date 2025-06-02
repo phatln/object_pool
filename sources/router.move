@@ -3,16 +3,17 @@ module tapp::router {
     use std::signer::address_of;
     use aptos_std::big_ordered_map;
     use aptos_std::big_ordered_map::BigOrderedMap;
-    use aptos_std::debug::print;
     use aptos_framework::account::{create_resource_account, create_signer_with_capability, SignerCapability};
     use aptos_framework::object::{create_named_object, ExtendRef, generate_extend_ref,
-        generate_signer_for_extending
+        generate_signer, generate_signer_for_extending
     };
 
     use tapp::hook_factory;
 
     #[test_only]
     use aptos_framework::account::create_signer_for_test;
+    #[test_only]
+    use tapp::amm;
 
     struct Vault has key {
         vault: SignerCapability,
@@ -36,15 +37,14 @@ module tapp::router {
         let vault_signer = &create_signer_with_capability(&vault.vault);
 
         // create object
-        let cref = &create_named_object(vault_signer, to_bytes(&id));
-        let extend_ref = &generate_extend_ref(cref);
-        let object_signer = &generate_signer_for_extending(extend_ref);
-        print(&address_of(object_signer));
+        let cref = create_named_object(vault_signer, to_bytes(&id));
+        let object_signer = &generate_signer(&cref);
 
         // create concrete pool under object
         hook_factory::create_pool(object_signer);
 
-        move_to(object_signer, PoolCap { extend_ref: *extend_ref });
+        let extend_ref = generate_extend_ref(&cref);
+        move_to(object_signer, PoolCap { extend_ref });
         vault.pools.add(id, address_of(object_signer))
     }
 
@@ -58,12 +58,22 @@ module tapp::router {
         hook_factory::update_pool(pool_signer, value);
     }
 
-    #[test(signer= @0xfff)]
-    fun test_create_and_update(signer: &signer) acquires Vault, PoolCap {
+    #[view]
+    public fun pool_addr(pool_id: address): address acquires Vault {
+        let vault = borrow_global<Vault>(@tapp);
+        *vault.pools.borrow(&pool_id)
+    }
+
+    #[test]
+    fun test_create_and_update() acquires Vault, PoolCap {
         init_module(&create_signer_for_test(@tapp));
 
         let pool_id = @012345;
         create_pool(pool_id);
         update_pool(pool_id, 6969);
+
+        let pool_addr = pool_addr(pool_id);
+        let updated_value = amm::value(pool_addr);
+        assert!(updated_value == 6969);
     }
 }
