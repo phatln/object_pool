@@ -11,10 +11,6 @@ module tapp::amm {
         positions: BigOrderedMap<u64, Position>
     }
 
-    struct Positions has key, store {
-        positions: BigOrderedMap<u64, Position>
-    }
-
     struct Position has store {
         shares: u64,
         a: u256,
@@ -51,11 +47,10 @@ module tapp::amm {
         });
     }
 
-    public fun create_position(pool_signer: &signer, shares: u64) acquires Pool, Positions {
+    public fun create_position(pool_signer: &signer, shares: u64) acquires Pool {
         let pool = &mut Pool[address_of(pool_signer)];
-        let positions = &mut Positions[address_of(pool_signer)];
         pool.position_count += 1;
-        positions.positions.add(pool.position_count, Position {
+        pool.positions.add(pool.position_count, Position {
             shares,
             a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7
         });
