@@ -1,8 +1,8 @@
 module tapp::router {
     use std::bcs::to_bytes;
     use std::signer::address_of;
-    use aptos_std::big_ordered_map;
-    use aptos_std::big_ordered_map::BigOrderedMap;
+    use aptos_std::table;
+    use aptos_std::table::Table;
     use aptos_framework::account::{create_resource_account, create_signer_with_capability, SignerCapability};
     use aptos_framework::object::{create_named_object, ExtendRef,
         generate_extend_ref, generate_signer, generate_signer_for_extending};
@@ -15,12 +15,12 @@ module tapp::router {
 
     struct Vault has key {
         vault: SignerCapability,
-        pools: BigOrderedMap<address, address>
+        pools: Table<address, address>
     }
 
     struct LegacyVault has key {
         vault: SignerCapability,
-        pools: BigOrderedMap<address, LPoolMeta>
+        pools: Table<address, LPoolMeta>
     }
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
@@ -32,8 +32,8 @@ module tapp::router {
     fun init_module(signer: &signer) {
         let (_, vault_cap) = create_resource_account(signer, b"VAULT");
         let (_, lvault_cap) = create_resource_account(signer, b"LVAULT");
-        let vault = Vault { vault: vault_cap, pools: big_ordered_map::new() };
-        let lvault = LegacyVault { vault: lvault_cap, pools: big_ordered_map::new() };
+        let vault = Vault { vault: vault_cap, pools: table::new() };
+        let lvault = LegacyVault { vault: lvault_cap, pools: table::new() };
         move_to(signer, vault);
         move_to(signer, lvault);
     }
@@ -60,11 +60,11 @@ module tapp::router {
     }
 
     public entry fun create_position(id: address, shares: u64) acquires Vault, PoolCap {
-        let vault = Vault[@tapp];
-        let pool_addr = vault.pools.borrow(&id);
+        let vault = &mut Vault[@tapp];
+        let pool_addr = vault.pools.borrow(id);
 
         // Router grants PoolCap
-        let pool_cap = PoolCap[*pool_addr];
+        let pool_cap = &PoolCap[*pool_addr];
         let pool_signer = generate_signer_for_extending(&pool_cap.extend_ref);
 
         hook_factory::create_position(&pool_signer, shares);
@@ -77,15 +77,15 @@ module tapp::router {
     }
 
     public entry fun lcreate_position(id: address, shares: u64) acquires LegacyVault {
-        let vault = LegacyVault[@tapp];
-        let pool_meta = vault.pools.borrow_mut(&id);
+        let vault = &mut LegacyVault[@tapp];
+        let pool_meta = vault.pools.borrow_mut(id);
         hook_factory::lcreate_position(pool_meta, shares);
     }
 
     #[view]
     public fun pool_addr(pool_id: address): address acquires Vault {
         let vault = borrow_global<Vault>(@tapp);
-        *vault.pools.borrow(&pool_id)
+        *vault.pools.borrow(pool_id)
     }
 
     #[test]
